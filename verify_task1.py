@@ -34,6 +34,10 @@ def test_blocked_ip_model():
 
     # Test creating a blocked IP
     test_ip = "203.0.113.99"
+
+    # Clean up any existing entry first
+    BlockedIP.objects.filter(ip_address=test_ip).delete()
+
     blocked_ip = BlockedIP.objects.create(
         ip_address=test_ip, reason="Test blocking", is_active=True
     )
@@ -126,6 +130,10 @@ def test_management_command():
 
     # Test blocking a new IP
     test_ip = "10.0.0.99"
+
+    # Clean up any existing entry first
+    BlockedIP.objects.filter(ip_address=test_ip).delete()
+
     print(f"\nTesting blocking IP: {test_ip}")
     out = StringIO()
     call_command(

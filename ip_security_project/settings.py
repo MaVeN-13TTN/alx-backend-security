@@ -87,15 +87,16 @@ DATABASES = {
 
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "ip-geolocation-cache",
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1",
         "TIMEOUT": 86400,  # 24 hours in seconds
         "OPTIONS": {
-            "MAX_ENTRIES": 10000,
-            "CULL_FREQUENCY": 3,
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
     }
 }
+
+# Override ratelimit cache settings to disable warnings for development
 
 
 # Password validation
@@ -181,11 +182,26 @@ LOGGING = {
 # Rate limiting for authenticated users: 10 requests per minute
 RATELIMIT_AUTHENTICATED_RATE = "10/m"
 
-# Rate limiting for anonymous users: 5 requests per minute
+# Rate limiting for anonymous users: 5 requests per minute  
 RATELIMIT_ANONYMOUS_RATE = "5/m"
 
-# Use cache for rate limiting
+# Use cache for rate limiting (use None to disable cache warnings for development)
 RATELIMIT_USE_CACHE = "default"
 
 # Enable rate limiting
 RATELIMIT_ENABLE = True
+
+# Celery Configuration for task scheduling and anomaly detection
+# https://docs.celeryproject.org/en/stable/userguide/configuration.html
+
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+
+# Anomaly detection configuration
+ANOMALY_DETECTION_ENABLED = True
+HOURLY_REQUEST_THRESHOLD = 100  # Flag IPs with >100 requests/hour
+SENSITIVE_PATHS_MONITORING = True

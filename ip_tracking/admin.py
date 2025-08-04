@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import RequestLog, BlockedIP
+from .models import RequestLog, BlockedIP, SuspiciousIP
 
 
 @admin.register(RequestLog)
@@ -48,6 +48,58 @@ class BlockedIPAdmin(admin.ModelAdmin):
     )
 
     actions = ["activate_blocks", "deactivate_blocks"]
+
+
+@admin.register(SuspiciousIP)
+class SuspiciousIPAdmin(admin.ModelAdmin):
+    """Admin interface for managing suspicious IP addresses detected by anomaly detection."""
+    
+    list_display = ["ip_address", "reason", "request_count", "detected_at", "is_resolved"]
+    list_filter = ["is_resolved", "detected_at", "reason"]
+    search_fields = ["ip_address", "reason"]
+    readonly_fields = ["detected_at"]
+    
+    fieldsets = (
+        ("IP Information", {
+            "fields": ("ip_address", "reason", "request_count")
+        }),
+        ("Detection Details", {
+            "fields": ("detected_at", "flagged_paths")
+        }),
+        ("Status", {
+            "fields": ("is_resolved",)
+        }),
+    )
+    
+    @admin.action(description="Mark selected IPs as resolved")
+    def mark_resolved(self, request, queryset):
+        """Mark selected suspicious IPs as resolved."""
+        updated = queryset.update(is_resolved=True)
+        self.message_user(request, f"{updated} suspicious IPs marked as resolved.")
+    
+    @admin.action(description="Block selected suspicious IPs")
+    def block_suspicious_ips(self, request, queryset):
+        """Block selected suspicious IPs."""
+        blocked_count = 0
+        for suspicious_ip in queryset:
+            # Create or update blocked IP
+            blocked_ip, created = BlockedIP.objects.get_or_create(
+                ip_address=suspicious_ip.ip_address,
+                defaults={
+                    'reason': f"Blocked due to suspicious activity: {suspicious_ip.reason}",
+                    'is_active': True
+                }
+            )
+            if not created and not blocked_ip.is_active:
+                blocked_ip.activate()
+            
+            # Mark as resolved
+            suspicious_ip.mark_resolved()
+            blocked_count += 1
+            
+        self.message_user(request, f"{blocked_count} suspicious IPs have been blocked.")
+    
+    actions = ["mark_resolved", "block_suspicious_ips"]
 
     @admin.action(description="Activate selected IP blocks")
     def activate_blocks(self, request, queryset):

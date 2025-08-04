@@ -1,4 +1,10 @@
-# IP Tracking: Security and Analytics
+# IP Tracking: Complete Security & Analytics System
+
+🔒 **Comprehensive IP tracking and security system with real-time anomaly detection**
+
+## System Overview
+
+This Django-based IP tracking system provides enterprise-level security monitoring with automated threat detection, geographic analytics, rate limiting, and intelligent IP blacklisting.
 
 ## Task 0: Basic IP Logging Middleware ✅
 
@@ -335,4 +341,276 @@ django_ratelimit.exceptions.Ratelimited
 
 ---
 
+---
+
 **Final Status:** ✅ All Tasks Complete - IP Tracking System with Security & Analytics
+
+## Task 4: Anomaly Detection with Celery ✅
+
+### Overview
+
+Implemented intelligent anomaly detection using Celery background tasks to automatically identify and flag suspicious IP behavior patterns for proactive security monitoring.
+
+### Components Implemented
+
+#### 1. SuspiciousIP Model (`ip_tracking/models.py`)
+
+- **Fields:** `ip_address`, `reason`, `detected_at`, `request_count`, `is_resolved`, `flagged_paths`
+- **Methods:** `flag_ip()`, `mark_resolved()`, `get_unresolved_count()`
+- **Features:** Intelligent deduplication, JSON field for tracking suspicious paths
+
+#### 2. Celery Task System (`ip_tracking/tasks.py`)
+
+- **detect_anomalies():** Main hourly task detecting suspicious patterns
+- **detect_high_volume_ips():** Flags IPs exceeding 100 requests/hour threshold
+- **detect_sensitive_path_access():** Monitors access to admin, login, and API endpoints
+- **cleanup_old_logs():** Daily maintenance task removing old log entries
+- **analyze_ip_patterns():** Advanced pattern analysis for emerging threats
+
+#### 3. Celery Configuration (`ip_security_project/celery.py`)
+
+- **Redis Integration:** Message broker and result backend
+- **Scheduled Tasks:** Hourly anomaly detection, daily log cleanup
+- **Error Handling:** Comprehensive logging and retry logic
+- **Scalability:** Worker process configuration for high-volume environments
+
+#### 4. Enhanced Admin Interface (`ip_tracking/admin.py`)
+
+- **SuspiciousIP Management:** Full CRUD operations with bulk actions
+- **Bulk Actions:** Mark multiple IPs as resolved or block suspicious IPs
+- **Filtering:** Filter by resolution status, detection date, and IP address
+- **Search:** Full-text search across IP addresses and reasons
+
+### Detection Algorithms
+
+#### High-Volume Detection
+- **Threshold:** 100+ requests per hour from single IP
+- **Analysis:** Time-based request counting with sliding window
+- **Action:** Automatic flagging with request count details
+
+#### Sensitive Path Monitoring
+- **Monitored Paths:** `/admin/`, `/login`, `/api/`, sensitive endpoints
+- **Pattern Analysis:** Multiple path access attempts within time window
+- **Correlation:** Cross-references with blocked IP lists
+
+#### Advanced Pattern Recognition
+- **Behavioral Analysis:** Request timing, path sequences, user agent patterns
+- **Machine Learning Ready:** Framework for ML-based anomaly detection
+- **Custom Rules:** Configurable detection rules and thresholds
+
+### Usage Examples
+
+```bash
+# Manual anomaly detection
+python manage.py shell -c "from ip_tracking.tasks import detect_anomalies; detect_anomalies()"
+
+# Start Celery worker
+celery -A ip_security_project worker --loglevel=info
+
+# Start Celery beat scheduler
+celery -A ip_security_project beat --loglevel=info
+
+# Check suspicious IPs
+python manage.py shell -c "from ip_tracking.models import SuspiciousIP; print(f'Unresolved: {SuspiciousIP.get_unresolved_count()}')"
+```
+
+### API Integration
+
+```python
+# Check if IP is flagged as suspicious
+from ip_tracking.models import SuspiciousIP
+
+def is_suspicious_ip(ip_address):
+    return SuspiciousIP.objects.filter(
+        ip_address=ip_address, 
+        is_resolved=False
+    ).exists()
+
+# Get anomaly detection results
+suspicious_ips = SuspiciousIP.objects.filter(is_resolved=False)
+for ip in suspicious_ips:
+    print(f"⚠️  {ip.ip_address}: {ip.reason}")
+```
+
+### Security Benefits
+
+- **Proactive Threat Detection:** Identifies suspicious behavior before manual review
+- **Automated Response:** Background processing doesn't impact request performance  
+- **Pattern Recognition:** Detects sophisticated attack patterns and coordinated threats
+- **Audit Trail:** Complete history of detected anomalies and resolution actions
+- **Scalable Monitoring:** Handles high-volume traffic with distributed task processing
+
+### System Architecture
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Django App    │───▶│   Redis Cache    │◀───│  Celery Worker  │
+│                 │    │  & Message Broker│    │                 │
+│ • Middleware    │    └──────────────────┘    │ • Anomaly Tasks │
+│ • Models        │                            │ • Pattern Analysis│
+│ • Views         │    ┌──────────────────┐    │ • Cleanup Jobs  │
+│ • Admin         │───▶│   Database       │    └─────────────────┘
+└─────────────────┘    │                  │
+                       │ • Request Logs   │    ┌─────────────────┐
+                       │ • Blocked IPs    │───▶│  Celery Beat    │
+                       │ • Suspicious IPs │    │                 │
+                       └──────────────────┘    │ • Task Scheduler│
+                                               │ • Cron Jobs     │
+                                               └─────────────────┘
+```
+
+## Complete System Features 🚀
+
+### 🔍 **Real-time Monitoring**
+- Every request logged with IP, timestamp, geolocation
+- Live anomaly detection with configurable thresholds
+- Geographic analytics with country/city tracking
+
+### 🛡️ **Security Protection**
+- Intelligent IP blacklisting with management commands
+- Rate limiting (10 req/min authenticated, 5 req/min anonymous)  
+- Automated suspicious IP flagging and blocking
+
+### 📊 **Analytics & Insights**
+- Geographic request distribution analytics
+- Request volume and pattern analysis
+- Top countries, cities, and IP activity reports
+
+### ⚡ **Background Processing**
+- Celery-powered anomaly detection tasks
+- Redis message broker and caching
+- Scheduled maintenance and cleanup jobs
+
+### 🔧 **Administration**
+- Django admin interface for all models
+- Bulk actions for IP management
+- Search and filtering capabilities
+
+## Technology Stack
+
+- **Backend:** Django 5.2.4
+- **Task Processing:** Celery 5.5.3  
+- **Message Broker:** Redis 7.0+
+- **Rate Limiting:** django-ratelimit 4.1.0
+- **Caching:** django-redis
+- **Database:** SQLite (easily configurable for PostgreSQL/MySQL)
+
+## Installation & Setup
+
+```bash
+# Clone repository
+git clone <repository-url>
+cd alx-backend-security
+
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate  # Linux/Mac
+# .venv\Scripts\activate     # Windows
+
+# Install dependencies
+pip install django celery redis django-ratelimit django-redis requests
+
+# Setup database
+python manage.py makemigrations
+python manage.py migrate
+
+# Create admin user
+python manage.py createsuperuser
+
+# Start Redis server
+redis-server
+
+# Start Django development server
+python manage.py runserver
+
+# Start Celery worker (new terminal)
+celery -A ip_security_project worker --loglevel=info
+
+# Start Celery beat scheduler (new terminal)
+celery -A ip_security_project beat --loglevel=info
+```
+
+## Testing & Verification
+
+```bash
+# Run complete system test
+python test_complete_system.py
+
+# Test individual tasks
+python verify_task0.py  # Basic IP logging
+python verify_task1.py  # IP blacklisting  
+python verify_task2.py  # Geolocation analytics
+python verify_task3.py  # Rate limiting
+python verify_task4.py  # Anomaly detection
+```
+
+## API Endpoints
+
+| Endpoint | Method | Description | Rate Limit |
+|----------|--------|-------------|------------|
+| `/ip-tracking/test/` | GET | Test IP logging | 5-10/min |
+| `/ip-tracking/stats/` | GET | Request statistics | 5-10/min |
+| `/ip-tracking/geo-analytics/` | GET | Geographic analytics | 5-10/min |
+| `/ip-tracking/login/` | POST | Protected login endpoint | 5-10/min |
+| `/ip-tracking/blocked/` | GET | List blocked IPs | 5-10/min |
+| `/admin/` | ALL | Django admin interface | Protected |
+
+## Management Commands
+
+```bash
+# IP Management
+python manage.py block_ip 192.168.1.100 --reason "Spam"
+python manage.py block_ip --list
+python manage.py block_ip 192.168.1.100 --unblock
+
+# Testing
+python manage.py test_ip_logging
+python manage.py test_geolocation 8.8.8.8
+```
+
+## Configuration
+
+Key settings in `settings.py`:
+
+```python
+# Rate Limiting
+RATELIMIT_AUTHENTICATED_RATE = "10/m"
+RATELIMIT_ANONYMOUS_RATE = "5/m"
+
+# Caching  
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1",
+    }
+}
+
+# Celery
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+```
+
+## Monitoring & Alerts
+
+- **Suspicious IP Detection:** Automatic flagging of high-volume IPs (100+ req/hour)
+- **Sensitive Path Monitoring:** Tracks access to admin and authentication endpoints  
+- **Geographic Anomalies:** Unusual request patterns from specific locations
+- **Admin Notifications:** Django admin interface for reviewing flagged IPs
+
+## Production Deployment
+
+- **Database:** Configure PostgreSQL or MySQL for production
+- **Cache:** Use Redis Cluster for high availability
+- **Celery:** Deploy with supervisor or systemd for process management
+- **Monitoring:** Integrate with Sentry, New Relic, or similar monitoring tools
+- **Security:** Configure HTTPS, secure headers, and firewall rules
+
+## License
+
+This project is part of the ALX Backend Security curriculum.
+
+---
+
+**🎉 Project Status:** ✅ **COMPLETE** - All 4 tasks implemented and tested
+**📁 Repository:** `alx-backend-security`  
+**👨‍💻 Implementation:** Full-stack Django security system with real-time monitoring

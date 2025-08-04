@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django_ratelimit",  # Rate limiting functionality
     "ip_tracking",  # IP tracking and security app
 ]
 
@@ -173,3 +174,18 @@ LOGGING = {
         },
     },
 }
+
+# Rate limiting configuration
+# https://django-ratelimit.readthedocs.io/
+
+# Rate limiting for authenticated users: 10 requests per minute
+RATELIMIT_AUTHENTICATED_RATE = "10/m"
+
+# Rate limiting for anonymous users: 5 requests per minute
+RATELIMIT_ANONYMOUS_RATE = "5/m"
+
+# Use cache for rate limiting
+RATELIMIT_USE_CACHE = "default"
+
+# Enable rate limiting
+RATELIMIT_ENABLE = True

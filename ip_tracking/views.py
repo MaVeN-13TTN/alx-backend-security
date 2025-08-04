@@ -2,9 +2,23 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.db import models
+from django.contrib.auth import authenticate, login as django_login
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
+from django_ratelimit.decorators import ratelimit
+from django.conf import settings
 from .models import RequestLog, BlockedIP
 
 
+def rate_for_user(group, request):
+    """Helper function to return different rates for authenticated vs anonymous users."""
+    if request.user.is_authenticated:
+        return getattr(settings, "RATELIMIT_AUTHENTICATED_RATE", "10/m")
+    else:
+        return getattr(settings, "RATELIMIT_ANONYMOUS_RATE", "5/m")
+
+
+@ratelimit(key="ip", rate=rate_for_user, method=["GET"], block=True)
 def test_ip_logging(request):
     """
     Test view to verify IP logging middleware is working.
@@ -43,6 +57,62 @@ def test_ip_logging(request):
     return JsonResponse(response_data)
 
 
+@ratelimit(key="ip", rate=rate_for_user, method=["POST"], block=True)
+@csrf_exempt
+@require_http_methods(["POST"])
+def sensitive_login(request):
+    """
+    Rate-limited login view for demonstration purposes.
+
+    Rate limits:
+    - Authenticated users: 10 requests per minute
+    - Anonymous users: 5 requests per minute
+    """
+    import json
+
+    try:
+        data = json.loads(request.body)
+        username = data.get("username")
+        password = data.get("password")
+
+        if not username or not password:
+            return JsonResponse(
+                {"error": "Username and password required", "success": False},
+                status=400,
+            )
+
+        # Authenticate user
+        user = authenticate(request, username=username, password=password)
+
+        if user is not None:
+            django_login(request, user)
+            return JsonResponse(
+                {
+                    "message": "Login successful",
+                    "success": True,
+                    "user": username,
+                    "rate_limit_applied": True,
+                }
+            )
+        else:
+            return JsonResponse(
+                {
+                    "error": "Invalid credentials",
+                    "success": False,
+                    "rate_limit_applied": True,
+                },
+                status=401,
+            )
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON", "success": False}, status=400)
+    except Exception as e:
+        return JsonResponse(
+            {"error": f"Server error: {str(e)}", "success": False}, status=500
+        )
+
+
+@ratelimit(key="ip", rate=rate_for_user, method=["GET"], block=True)
 def ip_stats(request):
     """
     View to show basic IP tracking statistics including geolocation data.
@@ -86,6 +156,7 @@ def ip_stats(request):
     return JsonResponse(stats)
 
 
+@ratelimit(key="ip", rate=rate_for_user, method=["GET"], block=True)
 def blocked_ips(request):
     """
     View to show currently blocked IP addresses.
@@ -110,6 +181,7 @@ def blocked_ips(request):
     return JsonResponse(response_data)
 
 
+@ratelimit(key="ip", rate=rate_for_user, method=["GET"], block=True)
 def geolocation_analytics(request):
     """
     View to show detailed geolocation analytics.

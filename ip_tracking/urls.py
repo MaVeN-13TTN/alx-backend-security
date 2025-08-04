@@ -8,4 +8,5 @@ urlpatterns = [
     path("stats/", views.ip_stats, name="ip_stats"),
     path("blocked/", views.blocked_ips, name="blocked_ips"),
     path("geo-analytics/", views.geolocation_analytics, name="geolocation_analytics"),
+    path("login/", views.sensitive_login, name="sensitive_login"),
 ]

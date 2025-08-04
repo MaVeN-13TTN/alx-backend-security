@@ -2,7 +2,7 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.db import models
-from .models import RequestLog
+from .models import RequestLog, BlockedIP
 
 
 def test_ip_logging(request):
@@ -18,10 +18,14 @@ def test_ip_logging(request):
         "-timestamp"
     )[:5]
 
+    # Check if IP is blocked
+    is_blocked = BlockedIP.is_blocked(client_ip)
+
     # Prepare response data
     response_data = {
         "message": "IP Logging Test",
         "detected_ip": client_ip,
+        "is_blocked": is_blocked,
         "request_path": request.get_full_path(),
         "method": request.method,
         "recent_logs_count": recent_logs.count(),
@@ -43,6 +47,7 @@ def ip_stats(request):
     """
     total_requests = RequestLog.objects.count()
     unique_ips = RequestLog.objects.values("ip_address").distinct().count()
+    blocked_ips_count = BlockedIP.objects.filter(is_active=True).count()
 
     # Get top 10 most active IPs
     top_ips = (
@@ -54,7 +59,32 @@ def ip_stats(request):
     stats = {
         "total_requests": total_requests,
         "unique_ips": unique_ips,
+        "blocked_ips": blocked_ips_count,
         "top_ips": list(top_ips),
     }
 
     return JsonResponse(stats)
+
+
+def blocked_ips(request):
+    """
+    View to show currently blocked IP addresses.
+    """
+    blocked_list = BlockedIP.objects.filter(is_active=True).order_by("-created_at")
+
+    blocked_data = [
+        {
+            "ip_address": blocked_ip.ip_address,
+            "reason": blocked_ip.reason,
+            "created_at": blocked_ip.created_at.isoformat(),
+        }
+        for blocked_ip in blocked_list
+    ]
+
+    response_data = {
+        "message": "Currently Blocked IPs",
+        "count": len(blocked_data),
+        "blocked_ips": blocked_data,
+    }
+
+    return JsonResponse(response_data)

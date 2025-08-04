@@ -138,3 +138,37 @@ This basic implementation provides the foundation for:
 **Status:** ✅ Task 0 Complete
 **Files:** `ip_tracking/middleware.py`, `ip_tracking/models.py`
 **Repository:** `alx-backend-security`
+
+
+## Task 1: IP Blacklisting ✅
+
+### Overview
+Extended the IP tracking system with comprehensive IP blacklisting functionality to block malicious or unwanted traffic.
+
+### Components Implemented
+
+#### 1. BlockedIP Model (`ip_tracking/models.py`)
+- **Fields:** `ip_address`, `reason`, `created_at`, `is_active`
+- **Methods:** `is_blocked()`, `activate()`, `deactivate()`
+
+#### 2. Enhanced Middleware (`ip_tracking/middleware.py`)
+- Checks IP against BlockedIP model before processing
+- Returns 403 Forbidden for blocked IPs with custom HTML page
+- Logs blocked attempts and skips logging for blocked requests
+
+#### 3. Management Command (`ip_tracking/management/commands/block_ip.py`)
+- Block/unblock IPs with reasons: `python manage.py block_ip 1.2.3.4 --reason "Spam"`
+- List blocked IPs: `python manage.py block_ip --list`
+- Force operations: `--force` flag to skip confirmations
+
+### Usage Examples
+```bash
+# Block an IP
+python manage.py block_ip 192.168.1.100 --reason "Suspicious activity" --force
+
+# List blocked IPs  
+python manage.py block_ip --list
+
+# Unblock an IP
+python manage.py block_ip 192.168.1.100 --unblock --force
+```

@@ -8,12 +8,17 @@ class RequestLogAdmin(admin.ModelAdmin):
     Admin interface for RequestLog model.
     """
 
-    list_display = ("ip_address", "path", "timestamp")
-    list_filter = ("timestamp", "ip_address")
-    search_fields = ("ip_address", "path")
-    readonly_fields = ("ip_address", "timestamp", "path")
+    list_display = ("ip_address", "country", "city", "path", "timestamp")
+    list_filter = ("timestamp", "country", "city")
+    search_fields = ("ip_address", "path", "country", "city")
+    readonly_fields = ("ip_address", "timestamp", "path", "country", "city")
     ordering = ["-timestamp"]
     list_per_page = 50
+
+    fieldsets = (
+        ("Request Information", {"fields": ("ip_address", "path", "timestamp")}),
+        ("Geolocation", {"fields": ("country", "city"), "classes": ("collapse",)}),
+    )
 
     def has_add_permission(self, request):
         """Disable manual addition of logs through admin."""

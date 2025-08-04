@@ -7,4 +7,5 @@ urlpatterns = [
     path("test/", views.test_ip_logging, name="test_ip_logging"),
     path("stats/", views.ip_stats, name="ip_stats"),
     path("blocked/", views.blocked_ips, name="blocked_ips"),
+    path("geo-analytics/", views.geolocation_analytics, name="geolocation_analytics"),
 ]

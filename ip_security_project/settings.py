@@ -25,7 +25,7 @@ SECRET_KEY = "django-insecure-mx_zwz*(hqp6&9+m&2trw5cgl(qlx$ss)p3013ukxk(ut6zz16
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["testserver", "localhost", "127.0.0.1"]
 
 
 # Application definition
@@ -78,6 +78,21 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / "db.sqlite3",
+    }
+}
+
+# Cache configuration for IP geolocation
+# https://docs.djangoproject.com/en/5.2/topics/cache/
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "ip-geolocation-cache",
+        "TIMEOUT": 86400,  # 24 hours in seconds
+        "OPTIONS": {
+            "MAX_ENTRIES": 10000,
+            "CULL_FREQUENCY": 3,
+        },
     }
 }
 

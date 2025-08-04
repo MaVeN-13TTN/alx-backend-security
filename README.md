@@ -172,3 +172,70 @@ python manage.py block_ip --list
 # Unblock an IP
 python manage.py block_ip 192.168.1.100 --unblock --force
 ```
+
+
+## Task 2: IP Geolocation Analytics ✅
+
+### Overview
+Enhanced the IP tracking system with geolocation capabilities to provide geographic insights into request origins for better security analysis and user experience personalization.
+
+### Components Implemented
+
+#### 1. Enhanced RequestLog Model (`ip_tracking/models.py`)
+- **New Fields:** `country`, `city` for storing geolocation data
+- **Indexes:** Database indexes on country and city fields for fast queries
+- **String Representation:** Updated to include location information
+
+#### 2. Geolocation Middleware (`ip_tracking/middleware.py`)
+- **API Integration:** Uses django-ip-geolocation and fallback to ip-api.com
+- **24-Hour Caching:** Geolocation results cached for 24 hours to minimize API calls
+- **Private IP Handling:** Skips geolocation for private/local IP addresses
+- **Error Handling:** Graceful fallback when geolocation services are unavailable
+
+#### 3. Enhanced API Endpoints
+- **Stats Endpoint:** Now includes country and city statistics
+- **Geo Analytics:** New `/ip-tracking/geo-analytics/` endpoint for detailed geolocation insights
+- **Test Endpoint:** Enhanced to show geolocation data in responses
+
+#### 4. Cache Configuration
+- **Local Memory Cache:** Configured for 24-hour geolocation data caching
+- **Performance Optimization:** Reduces API calls and improves response times
+- **Configurable:** Easy to switch to Redis or other cache backends
+
+### Usage Examples
+
+```bash
+# Test geolocation functionality
+python manage.py test_geolocation 8.8.8.8
+
+# View geolocation analytics
+curl http://localhost:8000/ip-tracking/geo-analytics/
+
+# View enhanced stats
+curl http://localhost:8000/ip-tracking/stats/
+```
+
+### API Response Examples
+
+**Geolocation Analytics:** `GET /ip-tracking/geo-analytics/`
+```json
+{
+  "total_requests_with_geo": 6,
+  "countries": [
+    {"country": "United States", "request_count": 3, "unique_ips": 2},
+    {"country": "Australia", "request_count": 2, "unique_ips": 1}
+  ],
+  "top_cities": [
+    {"city": "Ashburn", "country": "United States", "request_count": 2}
+  ]
+}
+```
+
+### Security Benefits
+- **Geographic Analysis:** Identify suspicious traffic patterns by location
+- **Fraud Detection:** Flag requests from unexpected geographic regions
+- **Compliance:** Support for geographic data protection regulations
+- **Analytics:** Better understanding of user demographics and traffic sources
+
+---
+**Updated Status:** ✅ Task 0 Complete, ✅ Task 1 Complete, ✅ Task 2 Complete

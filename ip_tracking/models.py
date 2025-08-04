@@ -10,6 +10,8 @@ class RequestLog(models.Model):
     - ip_address: The client's IP address
     - timestamp: When the request was made
     - path: The requested URL path
+    - country: Country code from IP geolocation
+    - city: City name from IP geolocation
     """
 
     ip_address = models.GenericIPAddressField(
@@ -19,6 +21,12 @@ class RequestLog(models.Model):
         default=timezone.now, help_text="Timestamp when the request was made"
     )
     path = models.CharField(max_length=500, help_text="The requested URL path")
+    country = models.CharField(
+        max_length=100, blank=True, null=True, help_text="Country from IP geolocation"
+    )
+    city = models.CharField(
+        max_length=100, blank=True, null=True, help_text="City from IP geolocation"
+    )
 
     class Meta:
         db_table = "ip_tracking_request_log"
@@ -29,10 +37,17 @@ class RequestLog(models.Model):
             models.Index(fields=["ip_address"]),
             models.Index(fields=["timestamp"]),
             models.Index(fields=["path"]),
+            models.Index(fields=["country"]),
+            models.Index(fields=["city"]),
         ]
 
     def __str__(self):
-        return f"{self.ip_address} - {self.path} at {self.timestamp}"
+        location = ""
+        if self.city and self.country:
+            location = f" ({self.city}, {self.country})"
+        elif self.country:
+            location = f" ({self.country})"
+        return f"{self.ip_address}{location} - {self.path} at {self.timestamp}"
 
 
 class BlockedIP(models.Model):

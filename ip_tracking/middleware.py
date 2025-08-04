@@ -2,8 +2,15 @@ import logging
 from django.utils.deprecation import MiddlewareMixin
 from django.utils import timezone
 from django.http import HttpResponseForbidden
-from django.template.loader import render_to_string
+from django.core.cache import cache
+from django.conf import settings
 from .models import RequestLog, BlockedIP
+
+# Import geolocation functionality
+# Note: Using direct API calls instead of django-ip-geolocation for better compatibility
+
+import json
+import requests
 
 
 logger = logging.getLogger(__name__)
@@ -11,14 +18,15 @@ logger = logging.getLogger(__name__)
 
 class IPLoggingMiddleware(MiddlewareMixin):
     """
-    Middleware to log IP addresses, timestamps, and paths of incoming requests.
+    Middleware to log IP addresses, timestamps, paths, and geolocation of incoming requests.
     Also blocks requests from blacklisted IP addresses.
 
     This middleware:
     1. Checks if the client IP is blocked and returns 403 if so
-    2. Logs all requests for security analysis and auditing
-    3. Captures client IP address (handling proxies and load balancers)
-    4. Stores request timestamp and URL path
+    2. Gets geolocation data for the IP address (with 24-hour caching)
+    3. Logs all requests for security analysis and auditing
+    4. Captures client IP address (handling proxies and load balancers)
+    5. Stores request timestamp, URL path, country, and city
 
     The data is stored in the RequestLog model for security analysis and auditing.
     Blocked IPs are managed through the BlockedIP model.
@@ -26,7 +34,7 @@ class IPLoggingMiddleware(MiddlewareMixin):
 
     def process_request(self, request):
         """
-        Process incoming request, check for blocked IPs, and log IP information.
+        Process incoming request, check for blocked IPs, get geolocation, and log IP information.
 
         Args:
             request: Django HttpRequest object
@@ -48,12 +56,19 @@ class IPLoggingMiddleware(MiddlewareMixin):
                 )
                 return self.create_forbidden_response(request, ip_address)
 
+            # Get geolocation data for the IP
+            geo_data = self.get_geolocation(ip_address)
+
             # Get the requested path
             path = request.get_full_path()
 
             # Create log entry only if IP is not blocked
             RequestLog.objects.create(
-                ip_address=ip_address, timestamp=timezone.now(), path=path
+                ip_address=ip_address,
+                timestamp=timezone.now(),
+                path=path,
+                country=geo_data.get("country"),
+                city=geo_data.get("city"),
             )
 
         except Exception as e:
@@ -61,6 +76,80 @@ class IPLoggingMiddleware(MiddlewareMixin):
             logger.error(f"Error in IPLoggingMiddleware: {e}")
 
         return None
+
+    def get_geolocation(self, ip_address):
+        """
+        Get geolocation data for an IP address with 24-hour caching.
+
+        Args:
+            ip_address (str): IP address to get geolocation for
+
+        Returns:
+            dict: Dictionary with 'country' and 'city' keys
+        """
+        # Skip geolocation for private/local IPs
+        if self.is_private_ip(ip_address):
+            return {"country": None, "city": None}
+
+        # Create cache key
+        cache_key = f"geolocation_{ip_address}"
+
+        # Try to get from cache first
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return cached_data
+
+        # Get fresh geolocation data
+        geo_data = self.fetch_geolocation(ip_address)
+
+        # Cache for 24 hours (86400 seconds)
+        cache.set(cache_key, geo_data, 86400)
+
+        return geo_data
+
+    def fetch_geolocation(self, ip_address):
+        """
+        Fetch geolocation data from external API.
+
+        Args:
+            ip_address (str): IP address to lookup
+
+        Returns:
+            dict: Dictionary with 'country' and 'city' keys
+        """
+        try:
+            # Use ip-api.com (free service) for geolocation
+            url = f"http://ip-api.com/json/{ip_address}?fields=status,country,city"
+            response = requests.get(url, timeout=5)
+
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("status") == "success":
+                    return {"country": data.get("country"), "city": data.get("city")}
+
+        except Exception as e:
+            logger.warning(f"Failed to get geolocation for {ip_address}: {e}")
+
+        # Return empty data if geolocation fails
+        return {"country": None, "city": None}
+
+    def is_private_ip(self, ip_address):
+        """
+        Check if an IP address is private/local.
+
+        Args:
+            ip_address (str): IP address to check
+
+        Returns:
+            bool: True if IP is private, False otherwise
+        """
+        import ipaddress
+
+        try:
+            ip = ipaddress.ip_address(ip_address)
+            return ip.is_private or ip.is_loopback or ip.is_link_local
+        except ValueError:
+            return True  # If invalid IP, treat as private
 
     def create_forbidden_response(self, request, ip_address):
         """
